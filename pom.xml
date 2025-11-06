@@ -21,6 +21,10 @@
         <java.version>17</java.version>
         <openapi.generator.version>7.5.0</openapi.generator.version>
         <springdoc.version>2.3.0</springdoc.version>
+        <sonar.projectKey>orders-service</sonar.projectKey>
+        <sonar.projectName>orders-service</sonar.projectName>
+        <sonar.sourceEncoding>UTF-8</sonar.sourceEncoding>
+        <sonar.exclusions>**/generated/**,**/generated-sources/**</sonar.exclusions>
     </properties>
 
     <dependencies>
