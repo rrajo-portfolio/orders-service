@@ -62,7 +62,6 @@ class OrderRepositoryTest {
 
     private OrderEntity baseOrder(UUID userId) {
         return OrderEntity.builder()
-            .id(UUID.randomUUID())
             .userId(userId)
             .status(OrderStatus.PENDING)
             .currency("EUR")
@@ -74,7 +73,6 @@ class OrderRepositoryTest {
 
     private OrderItemEntity orderItem(BigDecimal price) {
         return OrderItemEntity.builder()
-            .id(UUID.randomUUID())
             .productId(UUID.randomUUID())
             .quantity(1)
             .price(price)
