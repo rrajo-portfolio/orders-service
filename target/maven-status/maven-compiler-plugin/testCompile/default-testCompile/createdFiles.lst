@@ -1,0 +1,3 @@
+com\portfolio\orders\OrdersServiceApplicationTests.class
+com\portfolio\orders\service\OrderServiceTest.class
+com\portfolio\orders\repository\OrderRepositoryTest.class

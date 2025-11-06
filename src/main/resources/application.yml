@@ -1,0 +1,48 @@
+server:
+  port: 8084
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: orders-service
+  datasource:
+    url: jdbc:mysql://localhost:3309/ordersdb
+    username: orders_user
+    password: orders_pass
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:7080/auth/realms/portfolio/protocol/openid-connect/certs
+
+services:
+  catalog:
+    base-url: http://catalog-service:8081/api
+  users:
+    base-url: http://users-service:8082/api
+
+notifications:
+  orders:
+    to: talent@portfolio.local
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+logging:
+  level:
+    com.portfolio.orders: DEBUG
+
+security:
+  oauth2:
+    expected-issuer: http://localhost:7080/auth/realms/portfolio
