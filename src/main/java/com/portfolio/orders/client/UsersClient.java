@@ -5,7 +5,6 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -35,6 +34,22 @@ public class UsersClient {
             .orElse(false);
     }
 
+    public UserResponse fetchUser(UUID userId) {
+        return usersWebClient.get()
+            .uri("/users/{id}", userId)
+            .retrieve()
+            .onStatus(status -> status.is4xxClientError(), response -> {
+                log.warn("User {} fetch failed with status {}", userId, response.statusCode());
+                return Mono.error(new RemoteResourceNotFoundException("User %s not found".formatted(userId)));
+            })
+            .bodyToMono(UserResponse.class)
+            .blockOptional()
+            .orElseThrow(() -> new RemoteResourceNotFoundException("User %s not found".formatted(userId)));
+    }
+
     public record UserExistsResponse(boolean exists) {
+    }
+
+    public record UserResponse(UUID id, String fullName, String email) {
     }
 }

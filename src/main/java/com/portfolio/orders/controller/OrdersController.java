@@ -42,20 +42,20 @@ public class OrdersController implements OrdersApi {
     }
 
     @Override
-    @PreAuthorize("hasAnyAuthority('SCOPE_orders.write','ROLE_orders_write','ROLE_orders-admin','ROLE_catalog_admin','ROLE_portfolio_admin')")
+    @PreAuthorize("hasAnyAuthority('ROLE_orders-admin','ROLE_catalog_admin','ROLE_portfolio_admin','ROLE_admin')")
     public ResponseEntity<Order> updateOrder(UUID id, UpdateOrderRequest updateOrderRequest) {
         return ResponseEntity.ok(orderService.updateOrder(id, updateOrderRequest));
     }
 
     @Override
-    @PreAuthorize("hasAnyAuthority('SCOPE_orders.write','ROLE_orders_write','ROLE_orders-admin','ROLE_catalog_admin','ROLE_portfolio_admin')")
+    @PreAuthorize("hasAnyAuthority('ROLE_orders-admin','ROLE_catalog_admin','ROLE_portfolio_admin','ROLE_admin')")
     public ResponseEntity<Void> cancelOrder(UUID id) {
         orderService.cancelOrder(id);
         return ResponseEntity.noContent().build();
     }
 
     @Override
-    @PreAuthorize("hasAnyAuthority('SCOPE_orders.write','ROLE_orders_write','ROLE_orders-admin','ROLE_catalog_admin','ROLE_portfolio_admin')")
+    @PreAuthorize("hasAnyAuthority('ROLE_orders-admin','ROLE_catalog_admin','ROLE_portfolio_admin','ROLE_admin')")
     public ResponseEntity<Order> updateOrderStatus(UUID id, OrderStatusRequest orderStatusRequest) {
         return ResponseEntity.ok(orderService.updateStatus(id, orderStatusRequest));
     }

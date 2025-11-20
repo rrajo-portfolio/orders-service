@@ -5,6 +5,7 @@ import com.portfolio.orders.client.UsersClient;
 import com.portfolio.orders.entity.OrderEntity;
 import com.portfolio.orders.entity.OrderItemEntity;
 import com.portfolio.orders.entity.OrderStatus;
+import com.portfolio.orders.events.OrderNotificationPublisher;
 import com.portfolio.orders.exception.ConflictException;
 import com.portfolio.orders.exception.RemoteResourceNotFoundException;
 import com.portfolio.orders.exception.ResourceNotFoundException;
@@ -53,6 +54,9 @@ class OrderServiceTest {
 
     @Mock
     private CatalogClient catalogClient;
+
+    @Mock
+    private OrderNotificationPublisher notificationPublisher;
 
     @InjectMocks
     private OrderService orderService;
@@ -108,6 +112,7 @@ class OrderServiceTest {
 
         assertThat(result.getTotalAmount()).isEqualTo(50.0);
         verify(orderRepository).save(baseEntity);
+        verify(notificationPublisher).publish(baseEntity);
     }
 
     @Test
@@ -119,6 +124,7 @@ class OrderServiceTest {
             .isInstanceOf(RemoteResourceNotFoundException.class);
 
         verify(orderRepository, never()).save(any());
+        verify(notificationPublisher, never()).publish(any());
     }
 
     @Test
@@ -144,6 +150,7 @@ class OrderServiceTest {
 
         assertThat(entity.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(result.getStatus()).isEqualTo(com.portfolio.orders.generated.model.OrderStatus.CONFIRMED);
+        verify(notificationPublisher).publish(entity);
     }
 
     @Test
@@ -223,9 +230,12 @@ class OrderServiceTest {
         OrderEntity entity = baseEntity;
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(entity));
 
+        when(orderRepository.save(entity)).thenReturn(entity);
+
         orderService.cancelOrder(orderId);
 
         assertThat(entity.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verify(orderRepository).save(entity);
+        verify(notificationPublisher).publish(entity);
     }
 }

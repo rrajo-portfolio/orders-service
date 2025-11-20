@@ -10,6 +10,11 @@ spring:
     url: jdbc:mysql://localhost:3309/ordersdb
     username: orders_user
     password: orders_pass
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:rabbit}
+    password: ${RABBITMQ_PASS:rabbit}
   jpa:
     hibernate:
       ddl-auto: update
@@ -22,6 +27,11 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: http://localhost:7080/auth/realms/portfolio/protocol/openid-connect/certs
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
 services:
   catalog:
@@ -32,6 +42,14 @@ services:
 notifications:
   orders:
     to: talent@portfolio.local
+
+orders:
+  notification:
+    exchange: order.events.exchange
+    routing-key-pattern: orders.notification.*
+    enabled: ${ORDERS_NOTIFICATION_ENABLED:true}
+  kafka:
+    topic: ${ORDERS_KAFKA_TOPIC:orders-checkout-events}
 
 management:
   endpoints:
@@ -46,3 +64,7 @@ logging:
 security:
   oauth2:
     expected-issuer: http://localhost:7080/auth/realms/portfolio
+service-account:
+  token-uri: http://keycloak:8080/auth/realms/portfolio/protocol/openid-connect/token
+  client-id: portfolio-api
+  client-secret: portfolio-api-secret

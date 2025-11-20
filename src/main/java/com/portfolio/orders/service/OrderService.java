@@ -8,6 +8,8 @@ import com.portfolio.orders.entity.OrderStatus;
 import com.portfolio.orders.exception.ConflictException;
 import com.portfolio.orders.exception.RemoteResourceNotFoundException;
 import com.portfolio.orders.exception.ResourceNotFoundException;
+import com.portfolio.orders.events.OrderKafkaEventPublisher;
+import com.portfolio.orders.events.OrderNotificationPublisher;
 import com.portfolio.orders.generated.model.CreateOrderItem;
 import com.portfolio.orders.generated.model.CreateOrderRequest;
 import com.portfolio.orders.generated.model.Order;
@@ -15,7 +17,9 @@ import com.portfolio.orders.generated.model.OrderPage;
 import com.portfolio.orders.generated.model.OrderStatusRequest;
 import com.portfolio.orders.generated.model.UpdateOrderRequest;
 import com.portfolio.orders.repository.OrderRepository;
+import com.portfolio.orders.security.SecurityFacade;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,13 +35,41 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OrderService {
 
+    private static final String[] ADMIN_AUTHORITIES = {
+        "ROLE_portfolio_admin",
+        "ROLE_admin",
+        "ROLE_orders-admin",
+        "ROLE_catalog_admin"
+    };
+
     private final OrderRepository repository;
     private final OrderMapper mapper;
     private final UsersClient usersClient;
     private final CatalogClient catalogClient;
+    private final OrderNotificationPublisher notificationPublisher;
+    private final OrderKafkaEventPublisher kafkaEventPublisher;
+    private final SecurityFacade securityFacade;
 
     @Transactional(readOnly = true)
     public OrderPage listOrders(Integer page, Integer size, String status) {
+        if (!isPrivilegedUser()) {
+            UUID currentUser = securityFacade.getCurrentUserId();
+            if (currentUser == null) {
+                throw new AccessDeniedException("Anonymous user cannot list orders");
+            }
+            List<Order> orders = repository.findByUserId(currentUser).stream()
+                .filter(entity -> status == null || status.isBlank()
+                    || entity.getStatus() == OrderStatus.valueOf(status))
+                .map(mapper::toOrder)
+                .toList();
+            return new OrderPage()
+                .content(orders)
+                .page(0)
+                .size(orders.size())
+                .totalElements((long) orders.size())
+                .totalPages(orders.isEmpty() ? 0 : 1);
+        }
+
         Pageable pageable = PageRequest.of(page == null ? 0 : page, size == null ? 20 : size,
             Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<OrderEntity> result;
@@ -58,12 +90,20 @@ public class OrderService {
 
     @Transactional
     public Order createOrder(CreateOrderRequest request) {
-        UUID userId = request.getUserId();
-        if (!usersClient.exists(userId)) {
-            throw new RemoteResourceNotFoundException("User %s not found in users-service".formatted(userId));
+        UUID requestedUserId = request.getUserId();
+        UUID effectiveUserId = requestedUserId;
+        if (!isPrivilegedUser()) {
+            effectiveUserId = securityFacade.getCurrentUserId();
+            if (effectiveUserId == null) {
+                throw new AccessDeniedException("Unable to determine current user");
+            }
         }
+        UsersClient.UserResponse user = usersClient.fetchUser(effectiveUserId);
+
         OrderEntity entity = mapper.toEntity(request);
-        entity.setUserId(userId);
+        entity.setUserId(effectiveUserId);
+        entity.setUserFullName(user.fullName());
+        entity.setUserEmail(user.email());
         entity.setCurrency(request.getCurrency());
 
         entity.clearItems();
@@ -84,16 +124,23 @@ public class OrderService {
         entity.setTotalAmount(total);
 
         OrderEntity saved = repository.save(entity);
+        notificationPublisher.publish(saved);
+        kafkaEventPublisher.publish(saved);
         return mapper.toOrder(saved);
     }
 
     @Transactional(readOnly = true)
     public Order getOrder(UUID id) {
-        return mapper.toOrder(findById(id));
+        OrderEntity entity = findById(id);
+        assertCanAccess(entity);
+        return mapper.toOrder(entity);
     }
 
     @Transactional
     public Order updateOrder(UUID id, UpdateOrderRequest request) {
+        if (!isPrivilegedUser()) {
+            throw new AccessDeniedException("Only administrators can update orders");
+        }
         OrderEntity entity = findById(id);
         if (entity.getStatus() == OrderStatus.CANCELLED) {
             throw new ConflictException("Cannot update a cancelled order");
@@ -114,26 +161,39 @@ public class OrderService {
         }
         entity.setTotalAmount(total);
         OrderEntity saved = repository.save(entity);
+        notificationPublisher.publish(saved);
         return mapper.toOrder(saved);
     }
 
     @Transactional
     public void cancelOrder(UUID id) {
+        if (!isPrivilegedUser()) {
+            throw new AccessDeniedException("Only administrators can cancel orders");
+        }
         OrderEntity entity = findById(id);
         entity.setStatus(OrderStatus.CANCELLED);
-        repository.save(entity);
+        OrderEntity saved = repository.save(entity);
+        notificationPublisher.publish(saved);
     }
 
     @Transactional
     public Order updateStatus(UUID id, OrderStatusRequest request) {
+        if (!isPrivilegedUser()) {
+            throw new AccessDeniedException("Only administrators can update order status");
+        }
         OrderEntity entity = findById(id);
         OrderStatus newStatus = OrderStatus.valueOf(request.getStatus().getValue());
         entity.setStatus(newStatus);
-        return mapper.toOrder(repository.save(entity));
+        OrderEntity saved = repository.save(entity);
+        notificationPublisher.publish(saved);
+        return mapper.toOrder(saved);
     }
 
     @Transactional(readOnly = true)
     public List<Order> listOrdersByUser(UUID userId) {
+        if (!isPrivilegedUser()) {
+            securityFacade.assertCurrentUser(userId);
+        }
         return repository.findByUserId(userId).stream()
             .map(mapper::toOrder)
             .toList();
@@ -142,5 +202,19 @@ public class OrderService {
     private OrderEntity findById(UUID id) {
         return repository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Order %s not found".formatted(id)));
+    }
+
+    private void assertCanAccess(OrderEntity entity) {
+        if (isPrivilegedUser()) {
+            return;
+        }
+        UUID currentUser = securityFacade.getCurrentUserId();
+        if (currentUser == null || !currentUser.equals(entity.getUserId())) {
+            throw new AccessDeniedException("User is not allowed to access this order");
+        }
+    }
+
+    private boolean isPrivilegedUser() {
+        return securityFacade.hasAnyAuthority(ADMIN_AUTHORITIES);
     }
 }

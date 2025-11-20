@@ -43,6 +43,12 @@ public class OrderEntity {
     @Column(name = "user_id", nullable = false, columnDefinition = "BINARY(16)")
     private UUID userId;
 
+    @Column(name = "user_full_name", length = 160)
+    private String userFullName;
+
+    @Column(name = "user_email", length = 160)
+    private String userEmail;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 16)
     private OrderStatus status;

@@ -26,19 +26,36 @@ public interface OrderMapper {
     @Mapping(target = "status", expression = "java(OrderStatus.PENDING)")
     @Mapping(target = "createdAt", expression = "java(OffsetDateTime.now())")
     @Mapping(target = "totalAmount", expression = "java(BigDecimal.ZERO)")
+    @Mapping(target = "version", constant = "0L")
+    @Mapping(target = "userFullName", ignore = true)
+    @Mapping(target = "userEmail", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     OrderEntity toEntity(CreateOrderRequest request);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "order", ignore = true)
+    @Mapping(target = "price", ignore = true)
+    @Mapping(target = "title", ignore = true)
     OrderItemEntity toItemEntity(CreateOrderItem item);
 
+    @Mapping(target = "userName", source = "userFullName")
     Order toOrder(OrderEntity entity);
 
+    @Mapping(target = "productName", source = "title")
     OrderItem toOrderItem(OrderItemEntity entity);
 
     List<OrderItem> toOrderItems(List<OrderItemEntity> items);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "userId", ignore = true)
+    @Mapping(target = "userFullName", ignore = true)
+    @Mapping(target = "userEmail", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "totalAmount", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "version", ignore = true)
     void updateEntity(CreateOrderRequest request, @MappingTarget OrderEntity entity);
 
     @AfterMapping
