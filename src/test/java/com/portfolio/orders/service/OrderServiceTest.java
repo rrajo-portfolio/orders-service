@@ -5,6 +5,7 @@ import com.portfolio.orders.client.UsersClient;
 import com.portfolio.orders.entity.OrderEntity;
 import com.portfolio.orders.entity.OrderItemEntity;
 import com.portfolio.orders.entity.OrderStatus;
+import com.portfolio.orders.events.OrderKafkaEventPublisher;
 import com.portfolio.orders.events.OrderNotificationPublisher;
 import com.portfolio.orders.exception.ConflictException;
 import com.portfolio.orders.exception.RemoteResourceNotFoundException;
@@ -16,6 +17,7 @@ import com.portfolio.orders.generated.model.OrderPage;
 import com.portfolio.orders.generated.model.OrderStatusRequest;
 import com.portfolio.orders.generated.model.UpdateOrderRequest;
 import com.portfolio.orders.repository.OrderRepository;
+import com.portfolio.orders.security.SecurityFacade;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -36,6 +38,7 @@ import org.springframework.data.jpa.domain.Specification;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,6 +60,12 @@ class OrderServiceTest {
 
     @Mock
     private OrderNotificationPublisher notificationPublisher;
+
+    @Mock
+    private OrderKafkaEventPublisher kafkaEventPublisher;
+
+    @Mock
+    private SecurityFacade securityFacade;
 
     @InjectMocks
     private OrderService orderService;
@@ -83,12 +92,17 @@ class OrderServiceTest {
             .totalAmount(BigDecimal.ZERO)
             .createdAt(OffsetDateTime.now())
             .build();
+
+        lenient().when(securityFacade.hasAnyAuthority(org.mockito.ArgumentMatchers.any(String[].class)))
+            .thenReturn(true);
+        lenient().when(securityFacade.getCurrentUserId()).thenReturn(userId);
     }
 
     @Test
     @DisplayName("createOrder should validate dependencies and persist order")
     void createOrderPersistsOrder() {
-        when(usersClient.exists(userId)).thenReturn(true);
+        UsersClient.UserResponse userResponse = new UsersClient.UserResponse(userId, "Roberto Portfolio", "roberto@example.com");
+        when(usersClient.fetchUser(userId)).thenReturn(userResponse);
         when(orderMapper.toEntity(createOrderRequest)).thenReturn(baseEntity);
         when(orderMapper.toItemEntity(any(CreateOrderItem.class))).thenAnswer(invocation -> {
             CreateOrderItem item = invocation.getArgument(0);
@@ -113,18 +127,20 @@ class OrderServiceTest {
         assertThat(result.getTotalAmount()).isEqualTo(50.0);
         verify(orderRepository).save(baseEntity);
         verify(notificationPublisher).publish(baseEntity);
+        verify(kafkaEventPublisher).publish(baseEntity);
     }
 
     @Test
     @DisplayName("createOrder should throw when user does not exist")
     void createOrderMissingUserThrows() {
-        when(usersClient.exists(userId)).thenReturn(false);
+        when(usersClient.fetchUser(userId)).thenThrow(new RemoteResourceNotFoundException("User not found"));
 
         assertThatThrownBy(() -> orderService.createOrder(createOrderRequest))
             .isInstanceOf(RemoteResourceNotFoundException.class);
 
         verify(orderRepository, never()).save(any());
         verify(notificationPublisher, never()).publish(any());
+        verify(kafkaEventPublisher, never()).publish(any());
     }
 
     @Test
