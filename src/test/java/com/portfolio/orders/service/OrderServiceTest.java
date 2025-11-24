@@ -16,6 +16,7 @@ import com.portfolio.orders.generated.model.Order;
 import com.portfolio.orders.generated.model.OrderPage;
 import com.portfolio.orders.generated.model.OrderStatusRequest;
 import com.portfolio.orders.generated.model.UpdateOrderRequest;
+import com.portfolio.orders.metrics.OrdersMetrics;
 import com.portfolio.orders.repository.OrderRepository;
 import com.portfolio.orders.security.SecurityFacade;
 import java.math.BigDecimal;
@@ -38,6 +39,7 @@ import org.springframework.data.jpa.domain.Specification;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -66,6 +68,9 @@ class OrderServiceTest {
 
     @Mock
     private SecurityFacade securityFacade;
+
+    @Mock
+    private OrdersMetrics ordersMetrics;
 
     @InjectMocks
     private OrderService orderService;
@@ -96,6 +101,7 @@ class OrderServiceTest {
         lenient().when(securityFacade.hasAnyAuthority(org.mockito.ArgumentMatchers.any(String[].class)))
             .thenReturn(true);
         lenient().when(securityFacade.getCurrentUserId()).thenReturn(userId);
+        lenient().when(orderRepository.existsByUserId(any(UUID.class))).thenReturn(false);
     }
 
     @Test
@@ -128,6 +134,7 @@ class OrderServiceTest {
         verify(orderRepository).save(baseEntity);
         verify(notificationPublisher).publish(baseEntity);
         verify(kafkaEventPublisher).publish(baseEntity);
+        verify(ordersMetrics).trackNewOrder(baseEntity, true);
     }
 
     @Test
@@ -141,6 +148,7 @@ class OrderServiceTest {
         verify(orderRepository, never()).save(any());
         verify(notificationPublisher, never()).publish(any());
         verify(kafkaEventPublisher, never()).publish(any());
+        verify(ordersMetrics, never()).trackNewOrder(any(), anyBoolean());
     }
 
     @Test
@@ -167,6 +175,7 @@ class OrderServiceTest {
         assertThat(entity.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(result.getStatus()).isEqualTo(com.portfolio.orders.generated.model.OrderStatus.CONFIRMED);
         verify(notificationPublisher).publish(entity);
+        verify(ordersMetrics).incrementStatus(OrderStatus.CONFIRMED);
     }
 
     @Test
@@ -253,5 +262,6 @@ class OrderServiceTest {
         assertThat(entity.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verify(orderRepository).save(entity);
         verify(notificationPublisher).publish(entity);
+        verify(ordersMetrics).incrementStatus(OrderStatus.CANCELLED);
     }
 }

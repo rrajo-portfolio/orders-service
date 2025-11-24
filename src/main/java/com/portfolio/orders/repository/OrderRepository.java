@@ -12,5 +12,7 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSp
 
     List<OrderEntity> findByUserId(UUID userId);
 
+    boolean existsByUserId(UUID userId);
+
     long countByStatus(OrderStatus status);
 }

@@ -16,6 +16,7 @@ import com.portfolio.orders.generated.model.Order;
 import com.portfolio.orders.generated.model.OrderPage;
 import com.portfolio.orders.generated.model.OrderStatusRequest;
 import com.portfolio.orders.generated.model.UpdateOrderRequest;
+import com.portfolio.orders.metrics.OrdersMetrics;
 import com.portfolio.orders.repository.OrderRepository;
 import com.portfolio.orders.security.SecurityFacade;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +50,7 @@ public class OrderService {
     private final OrderNotificationPublisher notificationPublisher;
     private final OrderKafkaEventPublisher kafkaEventPublisher;
     private final SecurityFacade securityFacade;
+    private final OrdersMetrics ordersMetrics;
 
     @Transactional(readOnly = true)
     public OrderPage listOrders(Integer page, Integer size, String status) {
@@ -98,6 +100,7 @@ public class OrderService {
                 throw new AccessDeniedException("Unable to determine current user");
             }
         }
+        boolean isNewCustomer = !repository.existsByUserId(effectiveUserId);
         UsersClient.UserResponse user = usersClient.fetchUser(effectiveUserId);
 
         OrderEntity entity = mapper.toEntity(request);
@@ -126,6 +129,7 @@ public class OrderService {
         OrderEntity saved = repository.save(entity);
         notificationPublisher.publish(saved);
         kafkaEventPublisher.publish(saved);
+        ordersMetrics.trackNewOrder(saved, isNewCustomer);
         return mapper.toOrder(saved);
     }
 
@@ -174,6 +178,7 @@ public class OrderService {
         entity.setStatus(OrderStatus.CANCELLED);
         OrderEntity saved = repository.save(entity);
         notificationPublisher.publish(saved);
+        ordersMetrics.incrementStatus(OrderStatus.CANCELLED);
     }
 
     @Transactional
@@ -186,6 +191,7 @@ public class OrderService {
         entity.setStatus(newStatus);
         OrderEntity saved = repository.save(entity);
         notificationPublisher.publish(saved);
+        ordersMetrics.incrementStatus(newStatus);
         return mapper.toOrder(saved);
     }
 

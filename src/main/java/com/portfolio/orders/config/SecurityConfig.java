@@ -1,11 +1,13 @@
 package com.portfolio.orders.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -36,13 +38,19 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
+                .requestMatchers("/actuator/**", "/api/actuator/**").permitAll()
                 .anyRequest().authenticated())
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
                 .decoder(jwtDecoder())
                 .jwtAuthenticationConverter(jwtAuthenticationConverter())
             ));
         return http.build();
+    }
+
+    @Bean
+    public WebSecurityCustomizer actuatorWebSecurityCustomizer() {
+        return web -> web.ignoring().requestMatchers("/actuator/prometheus", "/api/actuator/prometheus");
     }
 
     @Bean

@@ -7,9 +7,11 @@ spring:
   application:
     name: orders-service
   datasource:
-    url: jdbc:mysql://localhost:3309/ordersdb
+    url: jdbc:mysql://localhost:3309/ordersdb?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
     username: orders_user
     password: orders_pass
+    hikari:
+      connection-init-sql: SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -56,6 +58,9 @@ management:
     web:
       exposure:
         include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 logging:
   level:
