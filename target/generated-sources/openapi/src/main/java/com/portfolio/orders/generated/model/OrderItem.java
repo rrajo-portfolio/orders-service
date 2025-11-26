@@ -19,10 +19,12 @@ import jakarta.annotation.Generated;
  * OrderItem
  */
 
-@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", date = "2025-11-06T08:31:32.868699+01:00[Europe/Madrid]", comments = "Generator version: 7.5.0")
+@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", date = "2025-11-24T01:05:45.244357200+01:00[Europe/Madrid]", comments = "Generator version: 7.5.0")
 public class OrderItem {
 
   private UUID productId;
+
+  private String productName;
 
   private Integer quantity;
 
@@ -61,6 +63,26 @@ public class OrderItem {
 
   public void setProductId(UUID productId) {
     this.productId = productId;
+  }
+
+  public OrderItem productName(String productName) {
+    this.productName = productName;
+    return this;
+  }
+
+  /**
+   * Product name snapshot from catalog-service
+   * @return productName
+  */
+  
+  @Schema(name = "productName", description = "Product name snapshot from catalog-service", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @JsonProperty("productName")
+  public String getProductName() {
+    return productName;
+  }
+
+  public void setProductName(String productName) {
+    this.productName = productName;
   }
 
   public OrderItem quantity(Integer quantity) {
@@ -134,6 +156,7 @@ public class OrderItem {
     }
     OrderItem orderItem = (OrderItem) o;
     return Objects.equals(this.productId, orderItem.productId) &&
+        Objects.equals(this.productName, orderItem.productName) &&
         Objects.equals(this.quantity, orderItem.quantity) &&
         Objects.equals(this.price, orderItem.price) &&
         Objects.equals(this.title, orderItem.title);
@@ -141,7 +164,7 @@ public class OrderItem {
 
   @Override
   public int hashCode() {
-    return Objects.hash(productId, quantity, price, title);
+    return Objects.hash(productId, productName, quantity, price, title);
   }
 
   @Override
@@ -149,6 +172,7 @@ public class OrderItem {
     StringBuilder sb = new StringBuilder();
     sb.append("class OrderItem {\n");
     sb.append("    productId: ").append(toIndentedString(productId)).append("\n");
+    sb.append("    productName: ").append(toIndentedString(productName)).append("\n");
     sb.append("    quantity: ").append(toIndentedString(quantity)).append("\n");
     sb.append("    price: ").append(toIndentedString(price)).append("\n");
     sb.append("    title: ").append(toIndentedString(title)).append("\n");

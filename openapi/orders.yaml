@@ -57,6 +57,8 @@ paths:
                 $ref: '#/components/schemas/Order'
         '400':
           description: Validation error
+        '403':
+          description: Insufficient permissions
         '404':
           description: User or product not found
   /orders/{id}:

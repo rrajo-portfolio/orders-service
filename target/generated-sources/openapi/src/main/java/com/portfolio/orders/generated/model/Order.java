@@ -27,12 +27,16 @@ import jakarta.annotation.Generated;
  * Order
  */
 
-@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", date = "2025-11-06T08:31:32.868699+01:00[Europe/Madrid]", comments = "Generator version: 7.5.0")
+@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", date = "2025-11-24T01:05:45.244357200+01:00[Europe/Madrid]", comments = "Generator version: 7.5.0")
 public class Order {
 
   private UUID id;
 
   private UUID userId;
+
+  private String userName;
+
+  private String userEmail;
 
   private OrderStatus status;
 
@@ -106,6 +110,46 @@ public class Order {
 
   public void setUserId(UUID userId) {
     this.userId = userId;
+  }
+
+  public Order userName(String userName) {
+    this.userName = userName;
+    return this;
+  }
+
+  /**
+   * Full name snapshot from users-service
+   * @return userName
+  */
+  
+  @Schema(name = "userName", description = "Full name snapshot from users-service", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @JsonProperty("userName")
+  public String getUserName() {
+    return userName;
+  }
+
+  public void setUserName(String userName) {
+    this.userName = userName;
+  }
+
+  public Order userEmail(String userEmail) {
+    this.userEmail = userEmail;
+    return this;
+  }
+
+  /**
+   * Get userEmail
+   * @return userEmail
+  */
+  @jakarta.validation.constraints.Email 
+  @Schema(name = "userEmail", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @JsonProperty("userEmail")
+  public String getUserEmail() {
+    return userEmail;
+  }
+
+  public void setUserEmail(String userEmail) {
+    this.userEmail = userEmail;
   }
 
   public Order status(OrderStatus status) {
@@ -267,6 +311,8 @@ public class Order {
     Order order = (Order) o;
     return Objects.equals(this.id, order.id) &&
         Objects.equals(this.userId, order.userId) &&
+        Objects.equals(this.userName, order.userName) &&
+        Objects.equals(this.userEmail, order.userEmail) &&
         Objects.equals(this.status, order.status) &&
         Objects.equals(this.totalAmount, order.totalAmount) &&
         Objects.equals(this.currency, order.currency) &&
@@ -278,7 +324,7 @@ public class Order {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, userId, status, totalAmount, currency, notes, createdAt, updatedAt, items);
+    return Objects.hash(id, userId, userName, userEmail, status, totalAmount, currency, notes, createdAt, updatedAt, items);
   }
 
   @Override
@@ -287,6 +333,8 @@ public class Order {
     sb.append("class Order {\n");
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    userId: ").append(toIndentedString(userId)).append("\n");
+    sb.append("    userName: ").append(toIndentedString(userName)).append("\n");
+    sb.append("    userEmail: ").append(toIndentedString(userEmail)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("    totalAmount: ").append(toIndentedString(totalAmount)).append("\n");
     sb.append("    currency: ").append(toIndentedString(currency)).append("\n");

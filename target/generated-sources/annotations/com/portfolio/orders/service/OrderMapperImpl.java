@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-06T08:31:34+0100",
+    date = "2025-11-24T01:05:47+0100",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 21.0.8 (Oracle Corporation)"
 )
 @Component
@@ -40,6 +40,7 @@ public class OrderMapperImpl implements OrderMapper {
         orderEntity.status( OrderStatus.PENDING );
         orderEntity.createdAt( OffsetDateTime.now() );
         orderEntity.totalAmount( BigDecimal.ZERO );
+        orderEntity.version( (long) 0L );
 
         return orderEntity.build();
     }
@@ -66,8 +67,10 @@ public class OrderMapperImpl implements OrderMapper {
 
         Order order = new Order();
 
+        order.setUserName( entity.getUserFullName() );
         order.setId( entity.getId() );
         order.setUserId( entity.getUserId() );
+        order.setUserEmail( entity.getUserEmail() );
         order.setStatus( orderStatusToOrderStatus( entity.getStatus() ) );
         if ( entity.getTotalAmount() != null ) {
             order.setTotalAmount( entity.getTotalAmount().doubleValue() );
@@ -89,6 +92,7 @@ public class OrderMapperImpl implements OrderMapper {
 
         OrderItem orderItem = new OrderItem();
 
+        orderItem.setProductName( entity.getTitle() );
         orderItem.setProductId( entity.getProductId() );
         orderItem.setQuantity( entity.getQuantity() );
         if ( entity.getPrice() != null ) {
@@ -119,9 +123,6 @@ public class OrderMapperImpl implements OrderMapper {
             return;
         }
 
-        if ( request.getUserId() != null ) {
-            entity.setUserId( request.getUserId() );
-        }
         if ( request.getCurrency() != null ) {
             entity.setCurrency( request.getCurrency() );
         }
