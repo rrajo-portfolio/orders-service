@@ -27,6 +27,8 @@ import java.util.Set;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private static final String ROLE_PREFIX = "ROLE_";
+
     @Value("${security.oauth2.jwk-set-uri:http://localhost:7080/auth/realms/portfolio/protocol/openid-connect/certs}")
     private String jwkSetUri;
 
@@ -88,7 +90,7 @@ public class SecurityConfig {
         }
         return roleCollection.stream()
             .map(Object::toString)
-            .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
+            .map(SecurityConfig::ensureRolePrefix)
             .map(SimpleGrantedAuthority::new)
             .collect(HashSet::new, Set::add, Set::addAll);
     }
@@ -106,12 +108,16 @@ public class SecurityConfig {
                 if (roles instanceof Collection<?> roleCollection) {
                     roleCollection.stream()
                         .map(Object::toString)
-                        .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
+                        .map(SecurityConfig::ensureRolePrefix)
                         .map(SimpleGrantedAuthority::new)
                         .forEach(authorities::add);
                 }
             }
         }
         return authorities;
+    }
+
+    private static String ensureRolePrefix(String role) {
+        return role.startsWith(ROLE_PREFIX) ? role : ROLE_PREFIX + role;
     }
 }

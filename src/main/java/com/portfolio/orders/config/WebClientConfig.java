@@ -62,10 +62,9 @@ public class WebClientConfig {
     }
 
     private ExchangeFilterFunction logRequest() {
-        return ExchangeFilterFunction.ofRequestProcessor(clientRequest -> {
-            return Mono.fromRunnable(() ->
-                log.debug("Calling external service {} {}", clientRequest.method(), clientRequest.url()))
-                .thenReturn(clientRequest);
-        });
+        return ExchangeFilterFunction.ofRequestProcessor(clientRequest ->
+            Mono.fromRunnable(() ->
+                    log.debug("Calling external service {} {}", clientRequest.method(), clientRequest.url()))
+                .thenReturn(clientRequest));
     }
 }

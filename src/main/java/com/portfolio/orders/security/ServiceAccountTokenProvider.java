@@ -94,9 +94,13 @@ public class ServiceAccountTokenProvider {
             .body(body)
             .retrieve()
             .bodyToMono(Map.class)
-            .block();
+            .blockOptional()
+            .orElseThrow(() -> new IllegalStateException("Token endpoint response was empty"));
 
         String accessToken = (String) response.get("access_token");
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new IllegalStateException("Token endpoint response did not include an access_token");
+        }
         Number expiresIn = (Number) response.getOrDefault("expires_in", 60);
         Instant expiresAt = Instant.now().plusSeconds(expiresIn.longValue() - 30);
         return new TokenHolder(accessToken, expiresAt);
