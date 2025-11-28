@@ -26,6 +26,8 @@
         <sonar.sourceEncoding>UTF-8</sonar.sourceEncoding>
         <sonar.exclusions>**/generated/**,**/generated-sources/**</sonar.exclusions>
         <sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.coverage.exclusions>**/controller/**,**/config/**,**/security/**,**/events/**,**/entity/**,**/repository/**,**/client/**,**/generated/**,**/generated-sources/**,**/exception/**,**/*Application.*</sonar.coverage.exclusions>
+        <sonar.coverage.inclusions>**/service/**</sonar.coverage.inclusions>
     </properties>
 
     <dependencies>
@@ -202,6 +204,21 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.11</version>
+                <configuration>
+                    <excludes>
+                        <exclude>com/portfolio/orders/controller/**</exclude>
+                        <exclude>com/portfolio/orders/config/**</exclude>
+                        <exclude>com/portfolio/orders/security/**</exclude>
+                        <exclude>com/portfolio/orders/events/**</exclude>
+                        <exclude>com/portfolio/orders/entity/**</exclude>
+                        <exclude>com/portfolio/orders/repository/**</exclude>
+                        <exclude>com/portfolio/orders/client/**</exclude>
+                        <exclude>com/portfolio/orders/generated/**</exclude>
+                        <exclude>com/portfolio/orders/service/OrderMapperImpl*</exclude>
+                        <exclude>com/portfolio/orders/exception/**</exclude>
+                        <exclude>com/portfolio/orders/OrdersServiceApplication*</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>

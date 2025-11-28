@@ -35,6 +35,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -263,5 +264,168 @@ class OrderServiceTest {
         verify(orderRepository).save(entity);
         verify(notificationPublisher).publish(entity);
         verify(ordersMetrics).incrementStatus(OrderStatus.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("listOrders as customer requires authenticated user")
+    void listOrdersCustomerRequiresUser() {
+        when(securityFacade.hasAnyAuthority(org.mockito.ArgumentMatchers.any(String[].class))).thenReturn(false);
+        when(securityFacade.getCurrentUserId()).thenReturn(null);
+
+        assertThatThrownBy(() -> orderService.listOrders(0, 10, null))
+            .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("listOrders as customer filters by provided status")
+    void listOrdersCustomerFiltersByStatus() {
+        when(securityFacade.hasAnyAuthority(org.mockito.ArgumentMatchers.any(String[].class))).thenReturn(false);
+        when(securityFacade.getCurrentUserId()).thenReturn(userId);
+        OrderEntity shipped = OrderEntity.builder()
+            .id(UUID.randomUUID())
+            .userId(userId)
+            .status(OrderStatus.SHIPPED)
+            .currency("EUR")
+            .totalAmount(BigDecimal.ONE)
+            .createdAt(OffsetDateTime.now())
+            .build();
+        when(orderRepository.findByUserId(userId)).thenReturn(List.of(baseEntity, shipped));
+        when(orderMapper.toOrder(baseEntity)).thenReturn(new Order().id(baseEntity.getId()));
+
+        OrderPage result = orderService.listOrders(null, null, "PENDING");
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(orderMapper).toOrder(baseEntity);
+        verify(orderMapper, never()).toOrder(shipped);
+    }
+
+    @Test
+    @DisplayName("createOrder as customer overrides requested user id")
+    void createOrderAsCustomerOverridesUserId() {
+        UUID current = UUID.randomUUID();
+        UUID requested = UUID.randomUUID();
+        CreateOrderRequest request = new CreateOrderRequest()
+            .userId(requested)
+            .currency("EUR")
+            .items(List.of(new CreateOrderItem().productId(productId).quantity(1)));
+
+        when(securityFacade.hasAnyAuthority(org.mockito.ArgumentMatchers.any(String[].class))).thenReturn(false);
+        when(securityFacade.getCurrentUserId()).thenReturn(current);
+        when(orderRepository.existsByUserId(current)).thenReturn(true);
+        UsersClient.UserResponse response = new UsersClient.UserResponse(current, "Candidate", "candidate@test");
+        when(usersClient.fetchUser(current)).thenReturn(response);
+        OrderEntity entity = OrderEntity.builder()
+            .id(UUID.randomUUID())
+            .userId(requested)
+            .status(OrderStatus.PENDING)
+            .currency("EUR")
+            .totalAmount(BigDecimal.ZERO)
+            .createdAt(OffsetDateTime.now())
+            .items(new java.util.ArrayList<>())
+            .build();
+        when(orderMapper.toEntity(request)).thenReturn(entity);
+        when(orderMapper.toItemEntity(any(CreateOrderItem.class))).thenAnswer(invocation -> {
+            CreateOrderItem item = invocation.getArgument(0);
+            return OrderItemEntity.builder()
+                .id(UUID.randomUUID())
+                .productId(item.getProductId())
+                .quantity(item.getQuantity())
+                .price(BigDecimal.ZERO)
+                .title("Placeholder")
+                .build();
+        });
+        CatalogClient.CatalogProduct product = new CatalogClient.CatalogProduct(productId, "Product", "SKU-1", BigDecimal.TEN, "EUR");
+        when(catalogClient.fetchProduct(productId)).thenReturn(product);
+        when(orderRepository.save(entity)).thenReturn(entity);
+        when(orderMapper.toOrder(entity)).thenReturn(new Order().id(entity.getId()));
+
+        Order result = orderService.createOrder(request);
+
+        assertThat(entity.getUserId()).isEqualTo(current);
+        assertThat(result.getId()).isEqualTo(entity.getId());
+    }
+
+    @Test
+    @DisplayName("getOrder should deny access when caller is not owner")
+    void getOrderDeniedForDifferentUser() {
+        when(securityFacade.hasAnyAuthority(org.mockito.ArgumentMatchers.any(String[].class))).thenReturn(false);
+        UUID otherUser = UUID.randomUUID();
+        when(securityFacade.getCurrentUserId()).thenReturn(otherUser);
+        OrderEntity entity = OrderEntity.builder()
+            .id(UUID.randomUUID())
+            .userId(UUID.randomUUID())
+            .status(OrderStatus.PENDING)
+            .currency("EUR")
+            .totalAmount(BigDecimal.ZERO)
+            .createdAt(OffsetDateTime.now())
+            .build();
+        when(orderRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> orderService.getOrder(entity.getId()))
+            .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("listOrdersByUser validates identity for non privileged users")
+    void listOrdersByUserValidatesIdentity() {
+        when(securityFacade.hasAnyAuthority(org.mockito.ArgumentMatchers.any(String[].class))).thenReturn(false);
+        when(orderRepository.findByUserId(userId)).thenReturn(List.of(baseEntity));
+        when(orderMapper.toOrder(baseEntity)).thenReturn(new Order().id(baseEntity.getId()));
+
+        orderService.listOrdersByUser(userId);
+
+        verify(securityFacade).assertCurrentUser(userId);
+    }
+
+    @Test
+    @DisplayName("getOrder should map and return entity for privileged user")
+    void getOrderReturnsDtoForPrivilegedUser() {
+        OrderEntity entity = baseEntity;
+        Order dto = new Order().id(entity.getId());
+        when(orderRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
+        when(orderMapper.toOrder(entity)).thenReturn(dto);
+
+        Order result = orderService.getOrder(entity.getId());
+
+        assertThat(result).isSameAs(dto);
+        verify(orderMapper).toOrder(entity);
+    }
+
+    @Test
+    @DisplayName("updateOrder should rebuild items and notify downstream systems")
+    void updateOrderRebuildsItemsAndPublishes() {
+        UUID orderId = baseEntity.getId();
+        baseEntity.setItems(new java.util.ArrayList<>());
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(baseEntity));
+
+        UUID anotherProduct = UUID.randomUUID();
+        UpdateOrderRequest request = new UpdateOrderRequest()
+            .items(List.of(
+                new CreateOrderItem().productId(productId).quantity(2),
+                new CreateOrderItem().productId(anotherProduct).quantity(1)
+            ));
+        when(orderMapper.toItemEntity(any(CreateOrderItem.class))).thenAnswer(invocation -> {
+            CreateOrderItem item = invocation.getArgument(0);
+            return OrderItemEntity.builder()
+                .productId(item.getProductId())
+                .quantity(item.getQuantity())
+                .price(BigDecimal.ZERO)
+                .title("placeholder")
+                .build();
+        });
+        CatalogClient.CatalogProduct first = new CatalogClient.CatalogProduct(productId, "Gateway", "SKU1", BigDecimal.valueOf(15), "EUR");
+        CatalogClient.CatalogProduct second = new CatalogClient.CatalogProduct(anotherProduct, "Kafka", "SKU2", BigDecimal.valueOf(35), "EUR");
+        when(catalogClient.fetchProduct(productId)).thenReturn(first);
+        when(catalogClient.fetchProduct(anotherProduct)).thenReturn(second);
+        when(orderRepository.save(baseEntity)).thenReturn(baseEntity);
+        Order dto = new Order().id(orderId);
+        when(orderMapper.toOrder(baseEntity)).thenReturn(dto);
+
+        Order result = orderService.updateOrder(orderId, request);
+
+        assertThat(baseEntity.getItems()).hasSize(2);
+        assertThat(baseEntity.getTotalAmount()).isEqualByComparingTo(BigDecimal.valueOf(65));
+        assertThat(result).isSameAs(dto);
+        verify(notificationPublisher).publish(baseEntity);
     }
 }

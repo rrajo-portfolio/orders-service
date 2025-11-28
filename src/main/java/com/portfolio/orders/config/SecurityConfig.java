@@ -17,6 +17,8 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -38,7 +40,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
+            .csrf(csrf -> csrf
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .ignoringRequestMatchers(
+                    EndpointRequest.toAnyEndpoint(),
+                    new AntPathRequestMatcher("/actuator/**"),
+                    new AntPathRequestMatcher("/api/**")
+                )
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
                 .requestMatchers("/actuator/**", "/api/actuator/**").permitAll()
