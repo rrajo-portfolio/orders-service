@@ -5,6 +5,7 @@ import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointR
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
@@ -19,11 +20,13 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 @Configuration
 @EnableMethodSecurity
@@ -38,6 +41,9 @@ public class SecurityConfig {
         "/api/swagger-ui/**",
         "/api/v3/api-docs/**"
     };
+    private static final RequestMatcher[] SWAGGER_REQUEST_MATCHERS = Stream.of(SWAGGER_WHITELIST)
+        .map(AntPathRequestMatcher::new)
+        .toArray(RequestMatcher[]::new);
 
     @Value("${security.oauth2.jwk-set-uri:http://localhost:7080/auth/realms/portfolio/protocol/openid-connect/certs}")
     private String jwkSetUri;
@@ -46,6 +52,18 @@ public class SecurityConfig {
     private String expectedIssuer;
 
     @Bean
+    @Order(1)
+    public SecurityFilterChain swaggerSecurityFilterChain(HttpSecurity http) throws Exception {
+        http.securityMatchers(matchers -> matchers.requestMatchers(SWAGGER_REQUEST_MATCHERS))
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+            .securityContext(securityContext -> securityContext.disable())
+            .sessionManagement(session -> session.disable());
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf
@@ -59,7 +77,6 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
                 .requestMatchers("/actuator/**", "/api/actuator/**").permitAll()
-                .requestMatchers(SWAGGER_WHITELIST).permitAll()
                 .anyRequest().authenticated())
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
                 .decoder(jwtDecoder())
