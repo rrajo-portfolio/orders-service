@@ -73,3 +73,10 @@ service-account:
   token-uri: http://keycloak:8080/auth/realms/portfolio/protocol/openid-connect/token
   client-id: portfolio-api
   client-secret: portfolio-api-secret
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    display-request-duration: true
+  api-docs:
+    path: /v3/api-docs
