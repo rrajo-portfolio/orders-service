@@ -9,6 +9,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -55,10 +56,10 @@ public class SecurityConfig {
     @Order(1)
     public SecurityFilterChain swaggerSecurityFilterChain(HttpSecurity http) throws Exception {
         http.securityMatchers(matchers -> matchers.requestMatchers(SWAGGER_REQUEST_MATCHERS))
-            .csrf(csrf -> csrf.disable())
+            .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-            .securityContext(securityContext -> securityContext.disable())
-            .sessionManagement(session -> session.disable());
+            .securityContext(AbstractHttpConfigurer::disable)
+            .sessionManagement(AbstractHttpConfigurer::disable);
         return http.build();
     }
 

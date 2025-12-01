@@ -39,6 +39,7 @@ import org.springframework.security.access.AccessDeniedException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.lenient;
@@ -359,10 +360,10 @@ class OrderServiceTest {
             .totalAmount(BigDecimal.ZERO)
             .createdAt(OffsetDateTime.now())
             .build();
-        when(orderRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
+        UUID orderId = entity.getId();
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(entity));
 
-        assertThatThrownBy(() -> orderService.getOrder(entity.getId()))
-            .isInstanceOf(AccessDeniedException.class);
+        assertThrows(AccessDeniedException.class, () -> orderService.getOrder(orderId));
     }
 
     @Test
