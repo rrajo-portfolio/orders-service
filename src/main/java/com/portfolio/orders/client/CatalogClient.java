@@ -1,6 +1,7 @@
 package com.portfolio.orders.client;
 
 import com.portfolio.orders.exception.RemoteResourceNotFoundException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import java.math.BigDecimal;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -23,6 +24,7 @@ public class CatalogClient {
         this.catalogWebClient = catalogWebClient;
     }
 
+    @CircuitBreaker(name = "catalog", fallbackMethod = "fetchProductFallback")
     public CatalogProduct fetchProduct(UUID productId) {
         return catalogWebClient.get()
             .uri("/products/{id}", productId)
@@ -34,6 +36,13 @@ public class CatalogClient {
             .bodyToMono(CatalogProduct.class)
             .blockOptional()
             .orElseThrow(() -> new RemoteResourceNotFoundException(PRODUCT_NOT_FOUND_TEMPLATE.formatted(productId)));
+    }
+
+    public CatalogProduct fetchProductFallback(UUID productId, Throwable t) {
+        log.error("Fallback: Failed to fetch product {} from catalog-service. Reason: {}", productId, t.getMessage());
+        // Fail fast or return a placeholder? For orders, valid price is critical.
+        // We throw a specific exception that can be handled by the controller advice or retry logic
+        throw new RuntimeException("Catalog service is unavailable. Please try again later.");
     }
 
     public record CatalogProduct(UUID id, String name, String sku, BigDecimal price, String currency) {
