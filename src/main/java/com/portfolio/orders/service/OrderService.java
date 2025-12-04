@@ -181,6 +181,19 @@ public class OrderService {
         ordersMetrics.incrementStatus(OrderStatus.CANCELLED);
     }
 
+    public void handlePaymentResult(UUID orderId, boolean success) {
+        OrderEntity order = findById(orderId);
+        if (success) {
+            order.setStatus(OrderStatus.CONFIRMED);
+            log.info("Order {} confirmed via payment saga", orderId);
+        } else {
+            order.setStatus(OrderStatus.CANCELLED);
+            log.info("Order {} cancelled via payment saga", orderId);
+        }
+        repository.save(order);
+        notificationPublisher.publish(order); // Notify user of update
+    }
+
     @Transactional
     public Order updateStatus(UUID id, OrderStatusRequest request) {
         if (!isPrivilegedUser()) {
