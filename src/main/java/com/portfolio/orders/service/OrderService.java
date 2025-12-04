@@ -20,6 +20,7 @@ import com.portfolio.orders.metrics.OrdersMetrics;
 import com.portfolio.orders.repository.OrderRepository;
 import com.portfolio.orders.security.SecurityFacade;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -34,6 +35,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderService {
 
     private static final String[] ADMIN_AUTHORITIES = {
